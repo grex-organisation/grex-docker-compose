@@ -1,0 +1,103 @@
+version: '3.8'
+
+# Define the custom network that all services will use
+networks:
+  mynetwork:
+    driver: bridge
+
+# Define the volume to persist database data
+volumes:
+  postgres_data: 
+
+
+services:
+  # Grex Postgres Service
+  grex-postgres:
+    image: postgres:latest  # PostgreSQL official image
+    container_name: grex-postgres-container
+    environment:
+      POSTGRES_USER: myuser        # Username
+      POSTGRES_PASSWORD: mypassword  # Password
+      POSTGRES_DB: mydb      # Database name
+    ports:
+      - "5432:5432"               # Map the host port 5432 to the container port 5432
+    networks:
+      - mynetwork          # Connect the container to a custom network
+    volumes:
+      - postgres_data:/Users/samsmacair/Documents/github-repo/grex-db-volume 
+
+  # Grex Word Service
+  grex-word-service:
+    image: grex-word-service-image  # Use the pre-built image from your Docker registry
+    container_name: grex-word-service-container
+    ports:
+      - "8001:8001"  # Expose the necessary ports
+    networks:
+      - mynetwork  # Connect this service to the custom network
+    restart: always  # Ensures the container restarts on failure
+    healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:8001/actuator/health"]  # Or any other health endpoint
+          interval: 30s
+          timeout: 30s
+          retries: 5
+    depends_on:
+      - grex-postgres
+
+  # Grex User Service
+  grex-user-service:
+    image: grex-user-service-image  # Use the pre-built image from your Docker registry
+    container_name: grex-user-service-container
+    ports:
+      - "8002:8002"  # Expose the necessary ports
+    networks:
+      - mynetwork  # Connect this service to the custom network
+    restart: always  # Ensures the container restarts on failure
+    healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:8002/actuator/health"]  # Or any other health endpoint
+          interval: 30s
+          timeout: 30s
+          retries: 5
+    depends_on:
+      - grex-postgres
+
+
+  # Grex Service Registry (e.g., Eureka)
+  grex-service-registry:
+    image: grex-service-registry-image  # Use the pre-built image from your Docker registry
+    container_name: grex-service-registry-container
+    ports:
+      - "9001:9001"  # Expose the necessary ports
+    networks:
+      - mynetwork  # Connect this service to the custom network
+    restart: always  # Ensures the container restarts on failure
+    healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:9001/actuator/health"]  # Or any other health endpoint
+          interval: 30s
+          timeout: 30s
+          retries: 5
+    depends_on:
+      - grex-postgres
+      - grex-word-service
+      - grex-user-service
+
+  # Grex API Gateway
+  grex-api-gateway:
+    image: grex-api-gateway-image  # Use the pre-built image from your Docker registry
+    container_name: grex-api-gateway-container
+    ports:
+      - "9000:9000"  # Expose the necessary ports
+    networks:
+      - mynetwork  # Connect this service to the custom network
+    restart: always  # Ensures the container restarts on failure
+    healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:9000/actuator/health"]  # Or any other health endpoint
+          interval: 30s
+          timeout: 30s
+          retries: 5
+    depends_on:
+      - grex-postgres
+      - grex-word-service
+      - grex-user-service
+      - grex-service-registry
+      
+
